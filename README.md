@@ -1,165 +1,121 @@
-# 🛡️ Insurance Claims Fraud Detection
+🛡️ Fraud Lens 
+### 🤖 AI-Powered Insurance Fraud Detection System
 
-A binary classification system that predicts whether an insurance claim is
-likely fraudulent, with a Streamlit dashboard for interactive predictions.
+## 📌 Project Overview
 
-```
-Dataset → Cleaning → Feature Engineering → ML Model → Fraud Score → Streamlit Dashboard
-```
+FraudLens is an intelligent fraud detection platform that leverages Machine Learning to identify potentially fraudulent insurance claims. The system analyzes historical claim data, detects suspicious patterns, and predicts fraud risk, enabling insurance companies to improve claim verification efficiency and reduce financial losses.
 
----
+## ❓ Why This Project Matters
 
-## 📁 Project Structure
+Insurance fraud costs organizations billions of dollars annually and often results in longer claim processing times and increased operational expenses.
+By utilizing Artificial Intelligence and predictive analytics, ClaimShield AI helps insurers identify high-risk claims, reduce fraudulent payouts, and make faster data-driven decisions.
 
-```
-fraud_project/
-├── data/
-│   └── insurance_claims.csv      # synthetic dataset (5,000 rows)
-├── models/                        # created after training
-│   ├── fraud_model.pkl
-│   ├── scaler.pkl
-│   ├── model_columns.pkl
-│   ├── needs_scaling.pkl
-│   └── model_name.pkl
-├── plots/                          # created after training (EDA charts)
-├── app/
-│   └── app.py                      # Streamlit dashboard
-├── generate_data.py                # creates the synthetic dataset
-├── train_model.py                  # cleaning + feature engineering + training
-├── requirements.txt
-├── Procfile                         # for Railway/Heroku-style deployment
-└── README.md
-```
+## ✨ Key Features
 
----
+✅ Automated insurance claim analysis
 
-## 🚀 How to Run (in Antigravity / locally)
+✅ Fraud risk prediction using Machine Learning
 
-### 1. Install dependencies
-```bash
-pip install -r requirements.txt
-```
+✅ Data preprocessing and feature engineering
 
-### 2. Generate the dataset
-This creates `data/insurance_claims.csv` with 5,000 rows (~24% fraud rate).
-```bash
-python generate_data.py
-```
+✅ Interactive analytics dashboard
 
-### 3. Train the models
-This runs EDA, cleaning, feature engineering, trains Logistic Regression,
-Random Forest, and XGBoost, evaluates them, and saves the best one to `models/`.
-```bash
-python train_model.py
-```
+✅ Real-time risk scoring
 
-You'll see printed metrics (Accuracy, Precision, Recall, F1, ROC AUC) for
-all three models, plus the winning model. EDA plots are saved to `plots/`.
+✅ Model performance evaluation
 
-### 4. Run the dashboard
-```bash
-streamlit run app/app.py
-```
-This opens a browser window where you can enter claim details and get:
-- **Fraud Risk Score** (e.g. 87%)
-- **Classification** (High Risk / Low Risk)
+✅ Business intelligence reporting
 
----
+## 🧠 AI & Machine Learning Components
 
-## 📊 Dataset Schema
+The system uses supervised learning algorithms to identify fraud patterns from historical insurance claim records.
 
-| Column              | Description                                  |
-|---------------------|-----------------------------------------------|
-| `claim_amount`      | Total amount claimed ($)                      |
-| `age`               | Age of the policyholder                       |
-| `policy_type`       | Basic / Premium / Comprehensive               |
-| `hospital_charges`  | Hospital charges associated with the claim ($)|
-| `annual_premium`    | Annual policy premium ($)                     |
-| `claim_history`     | No_History / Minor / Major prior claim history|
-| `previous_claims`   | Number of previous claims filed               |
-| `fraud_reported`    | Target: 1 = Fraud, 0 = Not Fraud              |
+### 🔹 Models Used
 
-> Note: This is a **synthetic** dataset generated with realistic fraud
-> patterns (e.g. high claim-to-premium ratio, inflated hospital charges,
-> many previous claims, major claim history). You can swap this file with
-> a real Kaggle dataset as long as you update column names in
-> `train_model.py` and `app/app.py` to match.
+- Logistic Regression
+- Random Forest
+- XGBoost
 
----
+### 🔹 AI Capabilities
 
-## 🔧 Feature Engineering
+- Fraud probability prediction
+- Pattern recognition
+- Anomaly detection
+- Risk classification
+## ⚙️ System Architecture
 
-| New Feature              | Formula                                    |
-|---------------------------|---------------------------------------------|
-| `claim_to_premium_ratio`  | `claim_amount / (annual_premium + 1)`        |
-| `charges_to_claim_ratio`  | `hospital_charges / (claim_amount + 1)`      |
-| `high_previous_claims`    | `1 if previous_claims >= 3 else 0`           |
+Insurance Claims Data
+⬇️
+Data Cleaning & Preprocessing
+⬇️
+Feature Engineering
+⬇️
+Machine Learning Models
+⬇️
+Fraud Risk Prediction
+⬇️
+Dashboard & Analytics
 
----
+## 🛠️ Tech Stack
 
-## 🤖 Models Trained
+### 💻 Programming
+- Python
 
-1. **Logistic Regression** (with feature scaling, `class_weight='balanced'`)
-2. **Random Forest** (`class_weight='balanced'`)
-3. **XGBoost** (`scale_pos_weight` tuned for class imbalance)
+### 📊 Data Analysis
+- Pandas
+- NumPy
 
-The script automatically picks the model with the **highest ROC AUC** and
-saves it for the dashboard to use.
+### 🤖 Machine Learning
+- Scikit-learn
+- XGBoost
 
-### Evaluation Metrics
-- Accuracy
-- Precision
-- Recall
-- F1 Score
-- ROC AUC
-- Confusion Matrix
+### 📈 Visualization
+- Matplotlib
+- Seaborn
 
----
+### 🌐 Deployment
+- Streamlit
+- GitHub
 
-## 🌐 Deployment
+## 🔄 Workflow
 
-### Railway
-1. Push this folder to a GitHub repo.
-2. Create a new Railway project from the repo.
-3. Railway will detect the `Procfile` and run:
-   ```
-   streamlit run app/app.py --server.port $PORT --server.address 0.0.0.0
-   ```
+1️⃣ Collect insurance claim data
 
-### Render
-1. Push to GitHub.
-2. Create a new **Web Service** on Render.
-3. Build command: `pip install -r requirements.txt`
-4. Start command:
-   ```
-   streamlit run app/app.py --server.port $PORT --server.address 0.0.0.0
-   ```
+2️⃣ Clean and preprocess records
 
----
+3️⃣ Perform exploratory data analysis
 
-## ⚠️ Important Notes
+4️⃣ Engineer fraud-related features
 
-- **Re-run `train_model.py` after any change to `generate_data.py`** — the
-  saved model, scaler, and column list must match what `app.py` expects.
-- If you swap in a real Kaggle dataset, run:
-  ```python
-  print(df.columns.tolist())
-  print(df.dtypes)
-  ```
-  first, and update the column names in `train_model.py` and `app/app.py`
-  accordingly. The one-hot encoded column names depend on the exact
-  category strings (e.g. `policy_type_Premium`), so always check
-  `models/model_columns.pkl` after training:
-  ```python
-  import joblib
-  print(joblib.load("models/model_columns.pkl"))
-  ```
+5️⃣ Train machine learning models
 
----
+6️⃣ Generate fraud risk predictions
 
-## 📈 Sample Output
+7️⃣ Visualize insights through dashboards
 
-```
-Fraud Risk Score = 87%
-Classification = High Risk
-```
+## 🎯 Real-World Impact
+
+📉 Reduces fraudulent claim payouts
+
+⚡ Improves investigation efficiency
+
+📊 Supports data-driven decision making
+
+🏢 Enhances operational productivity
+
+💰 Minimizes financial losses
+
+## 🚀 Future Enhancements
+
+- Explainable AI (SHAP)
+- Deep learning-based fraud detection
+- Real-time fraud monitoring
+- Automated fraud alerts
+- Cloud deployment & APIs
+<img width="890" height="292" alt="Screenshot 2026-06-16 003446" src="https://github.com/user-attachments/assets/df99c7cb-3f6d-4c06-a48d-3de4a2d7665d" />
+<img width="907" height="406" alt="Screenshot 2026-06-16 003241" src="https://github.com/user-attachments/assets/db63a791-3aed-4705-8ecf-083a601fbfdf" />
+<img width="927" height="296" alt="Screenshot 2026-06-16 003744" src="https://github.com/user-attachments/assets/49c458e4-5ab7-4e88-a2fc-946924cc94b7" />
+<img width="917" height="420" alt="Screenshot 2026-06-16 003716" src="https://github.com/user-attachments/assets/8f4626e8-e5d2-49a9-8ff0-8346055ee6e0" />
+<img width="926" height="381" alt="Screenshot 2026-06-16 003623" src="https://github.com/user-attachments/assets/5b429e73-9380-46cc-8a05-145d297095ca" />
+ Live: https://fraudlens-ncbetanktcv32hpoismbq6.streamlit.app/
+
