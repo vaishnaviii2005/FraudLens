@@ -1,6 +1,5 @@
 """
 🛡️ Extensive Insurance Claims Fraud Detection Dashboard
-Run with: streamlit run app/app.py
 """
 
 import streamlit as st
@@ -81,8 +80,7 @@ st.markdown(
 # ----------------------------------------------------------------
 # Load model artifacts
 # ----------------------------------------------------------------
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# Resolve the directory containing models and plots (works if app.py is in root or app/)
+# Resolve the directory containing models and plots dynamically
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 if os.path.exists(os.path.join(CURRENT_DIR, "models")):
     BASE_DIR = CURRENT_DIR
@@ -91,6 +89,42 @@ else:
 
 MODELS_DIR = os.path.join(BASE_DIR, "models")
 PLOTS_DIR = os.path.join(BASE_DIR, "plots")
+
+# Pre-flight check: ensure required model files are present
+required_files = ["fraud_model.pkl", "scaler.pkl", "model_columns.pkl", "needs_scaling.pkl", "model_name.pkl"]
+missing_files = []
+
+if not os.path.exists(MODELS_DIR):
+    missing_files.append(f"models/ directory (searched at: {MODELS_DIR})")
+else:
+    for rf in required_files:
+        if not os.path.exists(os.path.join(MODELS_DIR, rf)):
+            missing_files.append(rf)
+
+if missing_files:
+    st.error("### ❌ Missing Model Artifacts")
+    st.markdown(
+        f"""
+        The dashboard cannot load because the required machine learning model files are missing.
+        
+        **Diagnostics:**
+        * **Searched Directory:** `{MODELS_DIR}`
+        * **Missing Items:** {', '.join(f'`{m}`' for m in missing_files)}
+        
+        **How to Resolve:**
+        1. **Locate local files:** Check if the folder `models/` exists locally on your machine and contains `{', '.join(required_files)}`.
+        2. **Verify GitHub:** Check your GitHub repository in your web browser. If the `models/` directory is missing, or is empty, it means the files were not pushed.
+        3. **Check .gitignore:** Check if you have a `.gitignore` file (or global git settings) that ignores `*.pkl` or the `models/` folder.
+        4. **Force Add & Push:** Run the following commands in your terminal:
+           ```bash
+           git add -f models/*.pkl
+           git commit -m "force add model pickles"
+           git push
+           ```
+        """
+    )
+    st.stop()
+
 
 @st.cache_resource
 def load_model_artifacts():
@@ -121,7 +155,6 @@ model, scaler, model_columns, needs_scaling, model_name, model_metrics, feature_
 def predict_dataframe(df_input):
     df_cleaned = df_input.copy()
     
-    # Fill missing numeric values with medians (or defaults if missing)
     for col in ["hospital_charges", "annual_premium"]:
         if col in df_cleaned.columns:
             df_cleaned[col] = df_cleaned[col].fillna(2000.0 if col == "hospital_charges" else 1200.0)
@@ -129,22 +162,18 @@ def predict_dataframe(df_input):
     if "previous_claims" in df_cleaned.columns:
         df_cleaned["previous_claims"] = df_cleaned["previous_claims"].fillna(0)
         
-    # Feature engineering
     df_cleaned["claim_to_premium_ratio"] = df_cleaned["claim_amount"] / (df_cleaned["annual_premium"] + 1)
     df_cleaned["charges_to_claim_ratio"] = df_cleaned["hospital_charges"] / (df_cleaned["claim_amount"] + 1)
     df_cleaned["high_previous_claims"] = (df_cleaned["previous_claims"] >= 3).astype(int)
     
-    # Construct encoded dataframe aligning with training columns
     encoded_df = pd.DataFrame(index=df_cleaned.index)
     
-    # Copy numerical columns
     num_cols = ["claim_amount", "age", "hospital_charges", "annual_premium", "previous_claims", 
                 "claim_to_premium_ratio", "charges_to_claim_ratio", "high_previous_claims"]
     for col in num_cols:
         if col in df_cleaned.columns:
             encoded_df[col] = df_cleaned[col]
             
-    # Copy / Encode categorical columns
     for col in model_columns:
         if col.startswith("policy_type_"):
             val = col.replace("policy_type_", "")
@@ -159,15 +188,12 @@ def predict_dataframe(df_input):
             else:
                 encoded_df[col] = 0
                 
-    # Fill any remaining model columns with 0
     for col in model_columns:
         if col not in encoded_df.columns:
             encoded_df[col] = 0
             
-    # Order columns
     encoded_df = encoded_df[model_columns]
     
-    # Scale if needed
     if needs_scaling:
         X_scaled = scaler.transform(encoded_df)
         probs = model.predict_proba(X_scaled)[:, 1]
@@ -196,7 +222,6 @@ tab1, tab2, tab3 = st.tabs([
 # ----------------------------------------------------------------
 with tab1:
     st.subheader("Evaluate a New Claim")
-    st.write("Fill out the claimant and policy details to calculate the risk score instantly.")
     
     with st.form("single_prediction_form"):
         col1, col2 = st.columns(2)
@@ -225,13 +250,11 @@ with tab1:
             "previous_claims": previous_claims
         }
         
-        # Run inference
         probs, encoded_df = predict_dataframe(pd.DataFrame([input_dict]))
         prob = probs[0]
         fraud_percent = round(prob * 100, 2)
         classification = "High Risk" if prob > 0.5 else "Low Risk"
         
-        # Results Layout
         st.write("### Assessment Results")
         
         m_col1, m_col2 = st.columns(2)
@@ -258,20 +281,17 @@ with tab1:
             
         st.progress(min(int(fraud_percent), 100))
         
-        # Explanatory Indicators
         st.write("#### Key Risk Indicators Identified:")
         indicators = []
         
         if claim_amount / (annual_premium + 1) > 5:
-            indicators.append("🚨 **Extreme Claim-to-Premium Ratio**: The claim amount is over 5x the annual premium, indicating potential inflation.")
+            indicators.append("🚨 **Extreme Claim-to-Premium Ratio**: The claim amount is over 5x the annual premium.")
         if hospital_charges / (claim_amount + 1) > 1.2:
             indicators.append("🚨 **Inflated Hospital Charges**: Hospital charges significantly exceed the final claim amount.")
         if previous_claims >= 3:
             indicators.append("🚨 **High Frequency Claimant**: The policyholder has filed 3 or more previous claims.")
         if claim_history == "Major":
             indicators.append("🚨 **Major Prior History**: The policyholder has a history of major previous claims.")
-        if age < 25:
-            indicators.append("ℹ️ **Young Policyholder**: Younger policyholders statistically fall in a higher noise variance bracket.")
             
         if not indicators:
             st.success("✅ No anomalous risk indicators were found for this claim.")
@@ -279,7 +299,6 @@ with tab1:
             for ind in indicators:
                 st.markdown(ind)
                 
-        # Expanded Features View
         with st.expander("Show engineered features sent to the model"):
             st.dataframe(encoded_df.T.rename(columns={0: "Feature Value"}), use_container_width=True)
 
@@ -288,9 +307,7 @@ with tab1:
 # ----------------------------------------------------------------
 with tab2:
     st.subheader("Process Batch Claims")
-    st.write("Upload a CSV file of multiple claims to evaluate them in bulk and download a report.")
     
-    # Download sample template
     sample_df = pd.DataFrame({
         "claim_amount": [12500.00, 3200.50, 22000.00, 4100.00],
         "age": [28, 62, 45, 19],
@@ -315,20 +332,16 @@ with tab2:
     if uploaded_file is not None:
         try:
             df_batch = pd.read_csv(uploaded_file)
-            
-            # Validation
             required_cols = ["claim_amount", "age", "policy_type", "hospital_charges", "annual_premium", "claim_history", "previous_claims"]
             missing_cols = [col for col in required_cols if col not in df_batch.columns]
             
             if missing_cols:
                 st.error(f"❌ Uploaded CSV is missing required columns: {', '.join(missing_cols)}")
             else:
-                # Predict
                 probs, _ = predict_dataframe(df_batch)
                 df_batch["Fraud Risk (%)"] = np.round(probs * 100, 2)
                 df_batch["Risk Level"] = np.where(probs > 0.5, "High Risk", "Low Risk")
                 
-                # Summary Statistics Cards
                 total_claims = len(df_batch)
                 high_risk_count = (df_batch["Risk Level"] == "High Risk").sum()
                 high_risk_pct = round((high_risk_count / total_claims) * 100, 1)
@@ -344,16 +357,13 @@ with tab2:
                 with sc3:
                     st.metric("Potential Fraud Value Under Review", f"${potential_saving:,.2f}")
                 
-                # Visual comparison
                 st.write("### Processed Claims Table")
                 
-                # Dynamic highlighting of high risk
                 def highlight_high_risk(row):
                     return ['background-color: rgba(239, 68, 68, 0.2)' if row.name in df_batch[df_batch["Risk Level"] == "High Risk"].index else '' for _ in row.index]
                 
                 st.dataframe(df_batch.style.apply(highlight_high_risk, axis=1), use_container_width=True)
                 
-                # Download predictions
                 results_csv = df_batch.to_csv(index=False).encode('utf-8')
                 st.download_button(
                     label="📥 Export Report with Predictions",
@@ -369,7 +379,7 @@ with tab2:
 # ----------------------------------------------------------------
 with tab3:
     st.subheader("Model Validation & Training Analytics")
-    st.write(f"The model registry currently selects the best configuration based on validation ROC AUC. Current Model: **{model_name}**.")
+    st.write(f"Current Model: **{model_name}**.")
     
     col_metrics, col_plot = st.columns([2, 3])
     
@@ -377,7 +387,6 @@ with tab3:
         if model_metrics is not None:
             st.write("#### Cross-Validation Model Metrics")
             metrics_df = pd.DataFrame(model_metrics).T
-            # Re-ordering metrics for display
             display_cols = ["roc_auc", "accuracy", "f1", "precision", "recall"]
             metrics_df = metrics_df[display_cols].rename(columns={
                 "roc_auc": "ROC AUC",
@@ -387,11 +396,6 @@ with tab3:
                 "recall": "Recall"
             })
             st.dataframe(metrics_df.style.highlight_max(axis=0, color='rgba(255, 75, 75, 0.2)'), use_container_width=True)
-            
-            # Explanatory text
-            st.info("💡 **XGBoost** and **Random Forest** use class weighting and hyperparameter optimization to handle synthetic fraud class imbalance.")
-        else:
-            st.warning("Model comparison metrics could not be loaded. Please re-run train_model.py.")
             
         if feature_importances is not None:
             st.write("#### Feature Importances")
@@ -405,8 +409,6 @@ with tab3:
         roc_path = os.path.join(PLOTS_DIR, "roc_curves.png")
         if os.path.exists(roc_path):
             st.image(roc_path, use_container_width=True)
-        else:
-            st.info("ROC Curve comparison plot not found.")
             
     st.markdown("---")
     st.subheader("Exploratory Data Analysis (EDA) Charts")
